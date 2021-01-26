@@ -62,7 +62,7 @@ class Review extends DbConnection
     public $photos;
 
     /**
-     * @param $property
+     * @param                    $property
      * @param                    $value
      */
     public function setProperty($property, $value)
@@ -124,7 +124,7 @@ class Review extends DbConnection
     }
 
     /**
-     * @return string
+     * @return array
      */
     public function curlApi()
     {
@@ -140,11 +140,63 @@ class Review extends DbConnection
 
         $response = curl_exec($curl);
         curl_close($curl);
-        $this->response = json_decode($response, 1);
-        return 0;
+
+        $array = json_decode($response, 1);
+        return $reviews = $array['reviews'];
+    }
+
+    /**
+     * @param $reviews
+     *
+     * @return array
+     */
+    public function getMinRatingReviews($reviews)
+    {
+        return array_filter($reviews, function ($rating) {
+            return $rating['rating'] >= $_GET['min-rating'];
+        });
+    }
+
+    /**
+     * @param     $array
+     * @param     $on
+     * @param int $order
+     *
+     * @return array
+     */
+    public function array_sort($array, $on, $order = SORT_ASC)
+    {
+        $new_array      = [];
+        $sortable_array = [];
+
+        if (count($array) > 0) {
+            foreach ($array as $k => $v) {
+                if (is_array($v)) {
+                    foreach ($v as $k2 => $v2) {
+                        if ($k2 == $on) {
+                            $sortable_array[$k] = $v2;
+                        }
+                    }
+                } else {
+                    $sortable_array[$k] = $v;
+                }
+            }
+
+            switch ($order) {
+                case SORT_ASC:
+                    asort($sortable_array);
+                    break;
+                case SORT_DESC:
+                    arsort($sortable_array);
+                    break;
+            }
+
+            foreach ($sortable_array as $k => $v) {
+                $new_array[$k] = $array[$k];
+            }
+        }
+
+        return $new_array;
     }
 
 }
-
-$review = new Review();
-var_dump($review->curlApi());
