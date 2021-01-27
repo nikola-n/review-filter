@@ -3,29 +3,33 @@
 namespace App\Controllers;
 
 require_once __DIR__ . '/../Models/Review.php';
-require_once __DIR__ . '/../database/DbConnection.php';
+require_once __DIR__ . '/../../database/DbConnection.php';
 
+use PDO;
 use App\Models\Review;
+use Database\DbConnection;
 
-class ReviewController
+class ReviewController extends DbConnection
 {
-
+    /**
+     * Store records from API to database
+     */
     public function store()
     {
-        $reviews = new Review();
-        $reviews->curlApi();
-        foreach ($reviews->response['reviews'] as $key => $value) {
+        $reviews  = new Review();
+        $response = $reviews->curlApi();
+
+        foreach ($response as $key => $value) {
             $reviews->setProperty("uuid", $value["id"]);
             $reviews->setProperty("review_id", $value["reviewId"]);
             $reviews->setProperty("review_full_text", $value["reviewFullText"]);
             $reviews->setProperty("num_comments", $value["numComments"]);
             $reviews->setProperty("review_text", $value["reviewText"]);
-            //$reviews->setProperty("num_likes", $value["numLikes"]);
-            //$reviews->setProperty("num_shares", $value["numShares"]);
-            //$reviews->setProperty("photos", $value["photos"]);
+            $reviews->setProperty("rating", $value["rating"]);
+            $reviews->setProperty("num_likes", $value["numLikes"]);
+            $reviews->setProperty("num_shares", $value["numShares"]);
             $reviews->setProperty("logo_href", $value["logoHref"]);
             $reviews->setProperty("href", $value["href"]);
-            $reviews->setProperty("tags", $value["tags"]);
             $reviews->setProperty("source_id", $value["sourceId"]);
             $reviews->setProperty("source_name", $value["sourceName"]);
             $reviews->setProperty("source", $value["source"]);
@@ -42,55 +46,132 @@ class ReviewController
         }
     }
 
+    /**
+     * Filter and sort according to requests from the form
+     */
+    public function filterAndSort()
+    {
+        $minRating      = $_GET['min-rating'];
+        $orderByRating  = $_GET['rating'];
+        $orderByDate    = $_GET['date'];
+        $prioritizeText = $_GET['text'];
+
+        $sql = 'SELECT * FROM reviews WHERE reviews.rating >= ' . $minRating;
+
+        $sql = $this->ratingSort($orderByRating, $sql);
+
+        $sql = $this->dateSort($orderByDate, $sql);
+
+        $sql = $this->prioritizeText($prioritizeText, $sql);
+
+        $stmt = $this->getConnection()->prepare($sql);
+        $stmt->execute();
+        $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return $reviews;
+    }
+
+    // SQL Solution sort methods
+
+    /**
+     * @param $orderByRating
+     * @param $sql
+     *
+     * @return string
+     */
+    protected function ratingSort($orderByRating, $sql)
+    {
+        return $orderByRating === 'lowest' ? $sql .= ' ORDER BY rating ASC' : $sql .= ' ORDER BY rating DESC';
+    }
+
+    /**
+     * @param $orderByDate
+     * @param $sql
+     *
+     * @return string
+     */
+    protected function dateSort($orderByDate, $sql)
+    {
+        return $orderByDate === 'oldest' ? $sql .= ', review_created_on_time ASC' : $sql .= ', review_created_on_time DESC';
+    }
+
+    /**
+     * @param $prioritizeText
+     * @param $sql
+     *
+     * @return string
+     */
+    protected function prioritizeText($prioritizeText, $sql)
+    {
+        return $prioritizeText === 'yes' ? $sql .= ', CHAR_LENGTH(review_full_text);' : ' ';
+    }
+
+    // Solution with array sorting and filtering
+    public function filterSort()
+    {
+        $review = new Review();
+
+        $AllReviews = $review->curlApi();
+        $filtered   = $review->getMinRatingReviews($AllReviews);
+
+        $sortedByRating = $this->sortByRating($review, $filtered);
+
+        $sortedByDate = $this->sortByDate($review, $sortedByRating);
+
+        return $result = $this->sortByText($review, $sortedByDate);
+    }
+
+    // Array sorting and filtering solution methods
+
+    /**
+     * @param \App\Models\Review $review
+     * @param array              $filtered
+     *
+     * @return array
+     */
+    public function sortByRating(Review $review, array $filtered)
+    {
+        return $_GET['rating'] === 'lowest' ? $sortByRating = $review->array_sort($filtered, 'rating', SORT_ASC)
+            : $sortByRating = $review->array_sort($filtered, 'rating', SORT_DESC);
+    }
+
+    /**
+     * @param \App\Models\Review $review
+     * @param array              $sortedByRating
+     *
+     * @return array
+     */
+    public function sortByDate(Review $review, array $sortedByRating)
+    {
+        return $_GET['date'] === 'oldest' ? $sortByRating = $review->array_sort($sortedByRating, 'reviewCreatedOnTime', SORT_ASC)
+            : $sortByRating = $review->array_sort($sortedByRating, 'reviewCreatedOnTime', SORT_DESC);
+    }
+
+    /**
+     * @param \App\Models\Review $review
+     * @param array              $sortedByDate
+     *
+     * @return array
+     */
+    public function sortByText(Review $review, array $sortedByDate)
+    {
+        return $_GET['text'] === 'no' ? $sortByRating = $review->array_sort($sortedByDate, 'reviewFullText', SORT_ASC)
+            : $sortByRating = $review->array_sort($sortedByDate, 'reviewFullText', SORT_DESC);
+    }
+
 }
 
-$result = new Review();
+$store = new ReviewController();
+$store->store();
 echo '<pre>';
-$reviews  = $result->curlApi();
-$filtered = $result->getMinRatingReviews($reviews);
+print_r($store->filterAndSort());
+echo '</pre>';
+die();
+//==================================================================================
 
-/**
- * @param \App\Models\Review $result
- * @param array              $filtered
- *
- * @return array
- */
-function sortByRating(Review $result, array $filtered)
-{
-    return $_GET['rating'] === 'lowest' ? $sortByRating = $result->array_sort($filtered, 'rating', SORT_ASC)
-        : $sortByRating = $result->array_sort($filtered, 'rating', SORT_DESC);
-}
-
-/**
- * @param \App\Models\Review $result
- * @param array              $sortedByRating
- *
- * @return array
- */
-function sortByDate(Review $result, array $sortedByRating)
-{
-    return $_GET['date'] === 'oldest' ? $sortByRating = $result->array_sort($sortedByRating, 'reviewCreatedOnTime', SORT_ASC)
-        : $sortByRating = $result->array_sort($sortedByRating, 'reviewCreatedOnTime', SORT_DESC);
-}
-
-/**
- * @param \App\Models\Review $result
- * @param array              $sortedByDate
- *
- * @return array
- */
-function sortByText(Review $result, array $sortedByDate)
-{
-    return $_GET['text'] === 'no' ? $sortByRating = $result->array_sort($sortedByDate, 'reviewFullText', SORT_ASC)
-        : $sortByRating = $result->array_sort($sortedByDate, 'reviewFullText', SORT_DESC);
-}
-
-$sortedByRating = sortByRating($result, $filtered);
-
-$sortedByDate = sortByDate($result, $sortedByRating);
-
-$sortedByText = print_r(sortByText($result, $sortedByDate));
+$sortedArray = new ReviewController();
+echo '<pre>';
+print_r($sortedArray->filterSort());
 echo '</pre>';
 
-//$store->store();
-//$store = new ReviewController();
+

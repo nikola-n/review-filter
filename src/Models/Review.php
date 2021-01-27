@@ -3,15 +3,13 @@
 namespace App\Models;
 
 require __DIR__ . '/../../vendor/autoload.php';
-require __DIR__ . '/../database/DbConnection.php';
+require __DIR__ . '/../../database/DbConnection.php';
 
-use Database\DbConnection;
 use PDOException;
+use Database\DbConnection;
 
 class Review extends DbConnection
 {
-
-    public $response;
 
     public $uuid;
 
@@ -20,12 +18,6 @@ class Review extends DbConnection
     public $review_full_text;
 
     public $review_text;
-
-    //public $num_likes;
-
-    //public $num_comments;
-
-    //public $num_shares;
 
     public $rating;
 
@@ -91,10 +83,7 @@ class Review extends DbConnection
             $stmt->bindParam(':uuid', $this->uuid);
             $stmt->bindParam(':review_id', $this->review_id);
             $stmt->bindParam(':review_full_text', $this->review_full_text);
-            //$stmt->bindParam(':num_comments', $this->num_comments);
             $stmt->bindParam(':review_text', $this->review_text);
-            //$stmt->bindParam(':num_likes', $this->num_likes);
-            //$stmt->bindParam(':num_shares', $this->num_shares);
             $stmt->bindParam(':photos', $this->photos);
             $stmt->bindParam(':logo_href', $this->logo_href);
             $stmt->bindParam(':href', $this->href);

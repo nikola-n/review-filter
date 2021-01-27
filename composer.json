@@ -6,7 +6,9 @@
       "email": "nikola@thecodeconnectors.nl"
     }
   ],
-  "require": {},
+  "require": {
+    "ext-pdo": "*"
+  },
   "autoload": {
     "psr-4": {
       "App\\": "src/"
