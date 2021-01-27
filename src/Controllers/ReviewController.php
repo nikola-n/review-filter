@@ -56,17 +56,21 @@ class ReviewController extends DbConnection
         $orderByDate    = $_GET['date'];
         $prioritizeText = $_GET['text'];
 
-        $sql = 'SELECT * FROM reviews WHERE reviews.rating >= ' . $minRating;
+        try {
+            $sql = 'SELECT * FROM reviews WHERE reviews.rating >= ' . $minRating;
 
-        $sql = $this->ratingSort($orderByRating, $sql);
+            $sql = $this->ratingSort($orderByRating, $sql);
 
-        $sql = $this->dateSort($orderByDate, $sql);
+            $sql = $this->dateSort($orderByDate, $sql);
 
-        $sql = $this->prioritizeText($prioritizeText, $sql);
+            $sql = $this->prioritizeText($prioritizeText, $sql);
 
-        $stmt = $this->getConnection()->prepare($sql);
-        $stmt->execute();
-        $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $this->getConnection()->prepare($sql);
+            $stmt->execute();
+            $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\PDOException $exception) {
+            die($exception->getMessage());
+        }
 
         return $reviews;
     }
@@ -103,7 +107,7 @@ class ReviewController extends DbConnection
      */
     protected function prioritizeText($prioritizeText, $sql)
     {
-        return $prioritizeText === 'yes' ? $sql .= ', CHAR_LENGTH(review_full_text);' : ' ';
+        return $prioritizeText === 'yes' ? $sql .= ', CHAR_LENGTH(review_full_text);' : $sql.= '';
     }
 
     // Solution with array sorting and filtering
